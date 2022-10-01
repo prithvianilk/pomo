@@ -11,13 +11,13 @@ import (
 	"time"
 
 	"github.com/jedib0t/go-pretty/table"
-	models "github.com/prithvianilk/pomo/pkg/models"
+	"github.com/prithvianilk/pomo/internal/constants"
+	models "github.com/prithvianilk/pomo/internal/models"
 )
 
 var (
-	header     = table.Row{"#", "Name", "Date", "Duration (M)"}
-	spinChars  = `|/-\`
-	dateLayout = "2006-Jan-02"
+	header    = table.Row{"#", "Name", "Date", "Duration (M)"}
+	spinChars = `|/-\`
 )
 
 type App struct {
@@ -34,7 +34,7 @@ func (a *App) parseFlags() {
 
 func (app *App) listSessions() {
 	startDate, endDate := app.flags["start-date"], app.flags["end-date"]
-	url := fmt.Sprintf("%s/session?start-date=%s&end-date=%s", app.baseURL, startDate, endDate)
+	url := getRecordSessionURL(app.baseURL, startDate, endDate)
 	resp, err := http.Get(url)
 	if err != nil {
 		panic(err)
@@ -48,13 +48,25 @@ func (app *App) listSessions() {
 	printTable(sessionData)
 }
 
+func getRecordSessionURL(baseURL, startDate, endDate string) string {
+	url := baseURL + "/session"
+	if startDate == "" && endDate == "" {
+		return url
+	} else if startDate != "" && endDate != "" {
+		return url + "?start-date=" + startDate + "&end-date=" + endDate
+	} else if startDate != "" {
+		return url + "?start-date=" + startDate
+	}
+	return url + "?end-date=" + endDate
+}
+
 func printTable(sessionData SessionData) {
 	writer := table.NewWriter()
 	writer.SetOutputMirror(os.Stdout)
 	writer.AppendHeader(header)
 	for _, session := range sessionData.Sessions {
 		writer.AppendRows([]table.Row{
-			{session.Id, session.Name, session.Date.Format(dateLayout), session.DurationInMinutes},
+			{session.Id, session.Name, session.Date.Format(constants.DateLayout), session.DurationInMinutes},
 		})
 	}
 	writer.AppendFooter(table.Row{"", "", "Total", sessionData.TotalDuration})

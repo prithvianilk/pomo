@@ -4,31 +4,20 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
-	models "github.com/prithvianilk/pomo/pkg/models"
+	constants "github.com/prithvianilk/pomo/internal/constants"
+	models "github.com/prithvianilk/pomo/internal/models"
 )
 
 func GetHandler(c *gin.Context) {
 	db := ParseDB(c)
-	startDate, endDate := c.Query("start-date"), c.Query("end-date")
-	var (
-		rows *sql.Rows
-		err  error
-	)
-	isRangeQuery := startDate != "" && endDate != ""
-	isInvalid := !isRangeQuery && (startDate != "" || endDate != "")
-	if isInvalid {
-		log.Printf("only one date range present: %v", err)
-		c.JSON(http.StatusBadRequest, nil)
-		return
-	} else if !isRangeQuery {
-		query := `SELECT * FROM session;`
-		rows, err = db.Query(query)
-	} else {
-		query := `SELECT * FROM session WHERE date BETWEEN $1 AND $2;`
-		rows, err = db.Query(query, startDate, endDate)
-	}
+	defaultEndDate := time.Now().Format(constants.DateLayout)
+	startDate, endDate := c.DefaultQuery("start-date", constants.DefaultStartDate), c.DefaultQuery("end-date", defaultEndDate)
+
+	query := `SELECT * FROM session WHERE date BETWEEN $1 AND $2;`
+	rows, err := db.Query(query, startDate, endDate)
 	if err != nil {
 		log.Printf("error during sql query: %v", err)
 		c.JSON(http.StatusInternalServerError, nil)
@@ -47,27 +36,6 @@ func GetHandler(c *gin.Context) {
 		"sessions":      sessions,
 		"totalDuration": totalDuration,
 	})
-}
-
-func readSessions(rows *sql.Rows) ([]models.Session, error) {
-	var sessions []models.Session
-	for rows.Next() {
-		var session models.Session
-		err := rows.Scan(&session.Id, &session.Name, &session.Date, &session.DurationInMinutes)
-		if err != nil {
-			return nil, err
-		}
-		sessions = append(sessions, session)
-	}
-	return sessions, nil
-}
-
-func calculateTotalDuration(sessions []models.Session) int {
-	total := 0
-	for _, session := range sessions {
-		total += session.DurationInMinutes
-	}
-	return total
 }
 
 func PostHandler(c *gin.Context) {
@@ -112,4 +80,25 @@ func DropAndCreateNew(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, nil)
+}
+
+func readSessions(rows *sql.Rows) ([]models.Session, error) {
+	var sessions []models.Session
+	for rows.Next() {
+		var session models.Session
+		err := rows.Scan(&session.Id, &session.Name, &session.Date, &session.DurationInMinutes)
+		if err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, session)
+	}
+	return sessions, nil
+}
+
+func calculateTotalDuration(sessions []models.Session) int {
+	total := 0
+	for _, session := range sessions {
+		total += session.DurationInMinutes
+	}
+	return total
 }

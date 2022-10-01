@@ -4,7 +4,7 @@ import (
 	"flag"
 	"os"
 
-	models "github.com/prithvianilk/pomo/pkg/models"
+	models "github.com/prithvianilk/pomo/internal/models"
 )
 
 type SessionData struct {
