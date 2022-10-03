@@ -23,6 +23,7 @@ var (
 type App struct {
 	baseURL string
 	flags   map[string]string
+	args    []string
 }
 
 func (a *App) parseFlags() {
@@ -30,6 +31,7 @@ func (a *App) parseFlags() {
 	flag.Parse()
 	a.flags["start-date"] = *startDate
 	a.flags["end-date"] = *endDate
+	a.args = flag.Args()
 }
 
 func (app *App) listSessions() {
