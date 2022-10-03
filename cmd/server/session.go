@@ -11,10 +11,12 @@ import (
 	models "github.com/prithvianilk/pomo/internal/models"
 )
 
+const defaultStartDate = "2022-Sep-19"
+
 func GetHandler(c *gin.Context) {
 	db := ParseDB(c)
 	defaultEndDate := time.Now().Format(constants.DateLayout)
-	startDate, endDate := c.DefaultQuery("start-date", constants.DefaultStartDate), c.DefaultQuery("end-date", defaultEndDate)
+	startDate, endDate := c.DefaultQuery("start-date", defaultStartDate), c.DefaultQuery("end-date", defaultEndDate)
 
 	query := `SELECT * FROM session WHERE date BETWEEN $1 AND $2;`
 	rows, err := db.Query(query, startDate, endDate)
@@ -42,7 +44,7 @@ func GetSingleSessionHandler(c *gin.Context) {
 	db := ParseDB(c)
 	name := c.Param("name")
 	defaultEndDate := time.Now().Format(constants.DateLayout)
-	startDate, endDate := c.DefaultQuery("start-date", constants.DefaultStartDate), c.DefaultQuery("end-date", defaultEndDate)
+	startDate, endDate := c.DefaultQuery("start-date", defaultStartDate), c.DefaultQuery("end-date", defaultEndDate)
 
 	query := `SELECT * FROM session 
 	WHERE name = $1 AND 
