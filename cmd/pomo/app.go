@@ -38,6 +38,10 @@ func (app *App) listSessions() {
 	resp, err := http.Get(url)
 	if err != nil {
 		panic(err)
+	} else if resp.StatusCode == http.StatusNotFound {
+		sessionName := flag.Args()[1]
+		fmt.Printf("There are no sessions with name: %v\n", sessionName)
+		return
 	}
 	var sessionData SessionData
 	err = json.NewDecoder(resp.Body).Decode(&sessionData)
@@ -50,6 +54,11 @@ func (app *App) listSessions() {
 
 func getRecordSessionURL(baseURL, startDate, endDate string) string {
 	url := baseURL + "/session"
+	isSingle := len(flag.Args()) > 1
+	if isSingle {
+		sessionName := flag.Args()[1]
+		url += "/" + sessionName
+	}
 	if startDate == "" && endDate == "" {
 		return url
 	} else if startDate != "" && endDate != "" {

@@ -38,6 +38,41 @@ func GetHandler(c *gin.Context) {
 	})
 }
 
+func GetSingleSessionHandler(c *gin.Context) {
+	db := ParseDB(c)
+	name := c.Param("name")
+	defaultEndDate := time.Now().Format(constants.DateLayout)
+	startDate, endDate := c.DefaultQuery("start-date", constants.DefaultStartDate), c.DefaultQuery("end-date", defaultEndDate)
+
+	query := `SELECT * FROM session 
+	WHERE name = $1 AND 
+	date BETWEEN $2 AND $3;`
+	rows, err := db.Query(query, name, startDate, endDate)
+	if err != nil {
+		log.Printf("error during sql query: %v", err)
+		c.JSON(http.StatusInternalServerError, nil)
+		return
+	}
+
+	sessions, err := readSessions(rows)
+	if err != nil {
+		log.Printf("error while reading sessions: %v", err)
+		c.JSON(http.StatusInternalServerError, nil)
+		return
+	} else if len(sessions) == 0 {
+		log.Printf("no sessions with name: %v", name)
+		c.JSON(http.StatusNotFound, nil)
+		return
+	}
+
+	totalDuration := calculateTotalDuration(sessions)
+
+	c.JSON(http.StatusOK, gin.H{
+		"sessions":      sessions,
+		"totalDuration": totalDuration,
+	})
+}
+
 func PostHandler(c *gin.Context) {
 	db := ParseDB(c)
 	var session models.Session
