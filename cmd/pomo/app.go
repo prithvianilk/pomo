@@ -16,22 +16,14 @@ import (
 )
 
 var (
-	header    = table.Row{"#", "Name", "Date", "Duration (M)"}
-	spinChars = `|/-\`
+	header                = table.Row{"#", "Name", "Date", "Duration (M)"}
+	spinChars             = `|/-\`
+	serverConnFailMessage = "Error: pomo failed to connect to pomo-server. Maybe it's not running?"
 )
 
 type App struct {
 	baseURL string
 	flags   map[string]string
-	args    []string
-}
-
-func (a *App) parseFlags() {
-	startDate, endDate := flag.String("start-date", "", ""), flag.String("end-date", "", "")
-	flag.Parse()
-	a.flags["start-date"] = *startDate
-	a.flags["end-date"] = *endDate
-	a.args = flag.Args()
 }
 
 func (app *App) listSessions() {
@@ -39,19 +31,46 @@ func (app *App) listSessions() {
 	url := getRecordSessionURL(app.baseURL, startDate, endDate)
 	resp, err := http.Get(url)
 	if err != nil {
-		panic(err)
+		fmt.Println(serverConnFailMessage)
+		return
 	} else if resp.StatusCode == http.StatusNotFound {
 		sessionName := flag.Args()[1]
-		fmt.Printf("There are no sessions with name: %v\n", sessionName)
+		fmt.Printf("Error: There are no sessions with name: %v\n", sessionName)
 		return
 	}
 	var sessionData SessionData
 	err = json.NewDecoder(resp.Body).Decode(&sessionData)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Error: Failed to decoding session data: %v", err)
+		return
 	}
 	defer resp.Body.Close()
 	printTable(sessionData)
+}
+
+func (app *App) recordSession() {
+	name, duration := flag.Args()[1], flag.Args()[2]
+	durationInMinutes, err := strconv.Atoi(duration)
+	if err != nil {
+		fmt.Printf("Incorrect argument: %s is not a number\n", duration)
+		return
+	}
+	app.writePomoTickToStdout(durationInMinutes)
+	session := models.Session{Name: name, DurationInMinutes: durationInMinutes}
+	buff, _ := json.Marshal(session)
+	body := bytes.NewBuffer(buff)
+	url := app.baseURL + "/session"
+	_, err = http.Post(url, "application/json", body)
+	if err != nil {
+		fmt.Println(serverConnFailMessage)
+	}
+}
+
+func (a *App) parseFlags() {
+	startDate, endDate := flag.String("start-date", "", ""), flag.String("end-date", "", "")
+	flag.Parse()
+	a.flags["start-date"] = *startDate
+	a.flags["end-date"] = *endDate
 }
 
 func getRecordSessionURL(baseURL, startDate, endDate string) string {
@@ -84,26 +103,6 @@ func printTable(sessionData SessionData) {
 	writer.Render()
 }
 
-func (app *App) recordSession() {
-	name, duration := flag.Args()[1], flag.Args()[2]
-	durationInMinutes, err := strconv.Atoi(duration)
-	if err != nil {
-		panic(err)
-	}
-	app.writePomoTickToStdout(durationInMinutes)
-	session := models.Session{Name: name, DurationInMinutes: durationInMinutes}
-	buf, err := json.Marshal(session)
-	if err != nil {
-		panic(err)
-	}
-	body := bytes.NewBuffer(buf)
-	url := app.baseURL + "/session"
-	_, err = http.Post(url, "application/json", body)
-	if err != nil {
-		panic(err)
-	}
-}
-
 func (*App) writePomoTickToStdout(durationInMinutes int) {
 	durationInSec := durationInMinutes * 60
 	for i := 0; i < durationInSec; i++ {
@@ -112,4 +111,5 @@ func (*App) writePomoTickToStdout(durationInMinutes int) {
 		fmt.Printf("\r %s\tTime Elapsed: %ds\tPercentage Done: %.2f", spinChar, i, percentageDone)
 		time.Sleep(time.Second)
 	}
+	fmt.Print("\n\n")
 }
