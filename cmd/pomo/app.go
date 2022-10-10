@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	spinChars             = `|/-\`
-	serverConnFailMessage = "Error: pomo failed to connect to pomo-server. Maybe it's not running?"
+	spinChars               = `|/-\`
+	serverConnFailMessage   = "Error: pomo failed to connect to pomo-server. Maybe it's not running?"
+	serverGenericErrMessage = "Unable to perform command. Some issue occured."
 )
 
 var header = table.Row{"#", "Name", "Date", "Duration (M)"}
@@ -29,23 +30,32 @@ type SessionData struct {
 	TotalDuration int              `json:"totalDuration"`
 }
 
+type Flags struct {
+	startDate, endDate string
+	isNameOnlyCommand  bool
+}
+
 type App struct {
 	baseURL string
-	flags   map[string]string
+	Flags
 }
 
 func (app *App) listSessions() {
-	startDate, endDate := app.flags["start-date"], app.flags["end-date"]
-	url := getRecordSessionURL(app.baseURL, startDate, endDate)
+	if app.isNameOnlyCommand {
+		app.listSessionNames()
+		return
+	}
+
+	url := getRecordSessionURL(app.baseURL, app.startDate, app.endDate)
 	resp, err := http.Get(url)
-	if err != nil {
-		fmt.Println(serverConnFailMessage)
+	if checkAndHandleConnFailOrInternalServerError(err, resp) {
 		return
 	} else if resp.StatusCode == http.StatusNotFound {
 		sessionName := flag.Args()[1]
 		fmt.Printf("Error: There are no sessions with name: %v\n", sessionName)
 		return
 	}
+
 	var sessionData SessionData
 	err = json.NewDecoder(resp.Body).Decode(&sessionData)
 	if err != nil {
@@ -63,31 +73,56 @@ func (app *App) recordSession() {
 		fmt.Printf("Incorrect argument: %s is not a number\n", duration)
 		return
 	}
-	app.writePomoTickToStdout(durationInMinutes)
+	writePomoTickToStdout(durationInMinutes)
 	session := models.Session{Name: name, DurationInMinutes: durationInMinutes}
 	buff, _ := json.Marshal(session)
 	body := bytes.NewBuffer(buff)
 	url := app.baseURL + "/session"
-	_, err = http.Post(url, "application/json", body)
+	resp, err := http.Post(url, "application/json", body)
 	if err != nil {
 		fmt.Println(serverConnFailMessage)
+		return
+	} else if resp.StatusCode == http.StatusInternalServerError {
+		fmt.Println(serverGenericErrMessage)
 		return
 	}
 	notifyOnDesktop(name)
 }
 
-func notifyOnDesktop(name string) {
-	err := beeep.Notify("pomo", fmt.Sprintf("%s session completed!", name), "")
+func (app *App) listSessionNames() {
+	url := app.baseURL + "/name"
+	resp, err := http.Get(url)
+	if checkAndHandleConnFailOrInternalServerError(err, resp) {
+		return
+	}
+	var names []string
+	err = json.NewDecoder(resp.Body).Decode(&names)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Error: Failed to decoding session names: %v", err)
+		return
+	}
+	for _, name := range names {
+		fmt.Println(name)
 	}
 }
 
 func (a *App) parseFlags() {
+	isNameOnlyCommand := flag.Bool("nameonly", false, "")
 	startDate, endDate := flag.String("start-date", "", ""), flag.String("end-date", "", "")
 	flag.Parse()
-	a.flags["start-date"] = *startDate
-	a.flags["end-date"] = *endDate
+	a.isNameOnlyCommand = *isNameOnlyCommand
+	a.startDate, a.endDate = *startDate, *endDate
+}
+
+func checkAndHandleConnFailOrInternalServerError(err error, resp *http.Response) bool {
+	if err != nil {
+		fmt.Println(serverConnFailMessage)
+		return true
+	} else if resp.StatusCode == http.StatusInternalServerError {
+		fmt.Println(serverGenericErrMessage)
+		return true
+	}
+	return false
 }
 
 func getRecordSessionURL(baseURL, startDate, endDate string) string {
@@ -120,7 +155,7 @@ func printTable(sessionData SessionData) {
 	writer.Render()
 }
 
-func (*App) writePomoTickToStdout(durationInMinutes int) {
+func writePomoTickToStdout(durationInMinutes int) {
 	durationInSec := durationInMinutes * 60
 	for i := 0; i < durationInSec; i++ {
 		spinChar := string(spinChars[(i % 4)])
@@ -146,4 +181,11 @@ func formatDurationInSeconds(duration int) string {
 		return fmt.Sprintf(" %d Sec/s", duration)
 	}
 	return fmt.Sprintf("%d Sec/s", duration)
+}
+
+func notifyOnDesktop(name string) {
+	err := beeep.Notify("pomo", fmt.Sprintf("%s session completed!", name), "")
+	if err != nil {
+		panic(err)
+	}
 }

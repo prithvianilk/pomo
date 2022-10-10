@@ -12,11 +12,12 @@ func usage() {
 COMMANDS
   pomo [--start-date=<value>] [--end-date=<value>] list           List all pomo sessions.
   pomo [--start-date=<value>] [--end-date=<value>] list <name>    List all pomo sessions based on name.
+  pomo --nameonly list                                            List all pomo session names.
   pomo record <name> <duration (M)>                               Record a pomo session.`)
 }
 
 func main() {
-	app := App{baseURL: os.Getenv("BASE_URL"), flags: make(map[string]string)}
+	app := App{baseURL: os.Getenv("BASE_URL"), Flags: Flags{}}
 	flag.Usage = usage
 	app.parseFlags()
 	if len(flag.Args()) == 0 {
