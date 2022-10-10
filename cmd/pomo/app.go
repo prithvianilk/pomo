@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gen2brain/beeep"
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/prithvianilk/pomo/internal/constants"
 	"github.com/prithvianilk/pomo/internal/models"
@@ -70,6 +71,15 @@ func (app *App) recordSession() {
 	_, err = http.Post(url, "application/json", body)
 	if err != nil {
 		fmt.Println(serverConnFailMessage)
+		return
+	}
+	notifyOnDesktop(name)
+}
+
+func notifyOnDesktop(name string) {
+	err := beeep.Notify("pomo", fmt.Sprintf("%s session completed!", name), "")
+	if err != nil {
+		panic(err)
 	}
 }
 
