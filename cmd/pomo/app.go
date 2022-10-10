@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -12,14 +13,20 @@ import (
 
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/prithvianilk/pomo/internal/constants"
-	models "github.com/prithvianilk/pomo/internal/models"
+	"github.com/prithvianilk/pomo/internal/models"
 )
 
-var (
-	header                = table.Row{"#", "Name", "Date", "Duration (M)"}
+const (
 	spinChars             = `|/-\`
 	serverConnFailMessage = "Error: pomo failed to connect to pomo-server. Maybe it's not running?"
 )
+
+var header = table.Row{"#", "Name", "Date", "Duration (M)"}
+
+type SessionData struct {
+	Sessions      []models.Session `json:"sessions"`
+	TotalDuration int              `json:"totalDuration"`
+}
 
 type App struct {
 	baseURL string
@@ -107,9 +114,26 @@ func (*App) writePomoTickToStdout(durationInMinutes int) {
 	durationInSec := durationInMinutes * 60
 	for i := 0; i < durationInSec; i++ {
 		spinChar := string(spinChars[(i % 4)])
-		percentageDone := (float32((i + 1)) * 100) / float32(durationInSec)
-		fmt.Printf("\r %s\tTime Elapsed: %ds\tPercentage Done: %.2f", spinChar, i, percentageDone)
+		percentageDone := float64((i+1)*100) / float64(durationInSec)
+		currentFormattedDuration := formatDuration(i)
+		fmt.Printf("\r %s\tTime Elapsed: %s     Percentage Done: %.0f%s ", spinChar, currentFormattedDuration, percentageDone, "%")
 		time.Sleep(time.Second)
 	}
 	fmt.Print("\n\n")
+}
+
+func formatDuration(duration int) string {
+	durationInMinutes := int(math.Floor(float64(duration) / 60))
+	if durationInMinutes == 0 {
+		return formatDurationInSeconds(duration)
+	}
+	remainingSeconds := int(duration % 60)
+	return fmt.Sprintf("%d Min/s, ", durationInMinutes) + formatDurationInSeconds(remainingSeconds)
+}
+
+func formatDurationInSeconds(duration int) string {
+	if duration < 10 {
+		return fmt.Sprintf(" %d Sec/s", duration)
+	}
+	return fmt.Sprintf("%d Sec/s", duration)
 }

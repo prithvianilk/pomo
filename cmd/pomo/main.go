@@ -4,14 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-
-	models "github.com/prithvianilk/pomo/internal/models"
 )
-
-type SessionData struct {
-	Sessions      []models.Session `json:"sessions"`
-	TotalDuration int              `json:"totalDuration"`
-}
 
 func usage() {
 	fmt.Println(`pomo: pomodoro timer and session manager for hackers.
