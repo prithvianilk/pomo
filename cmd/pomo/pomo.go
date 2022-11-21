@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	app "github.com/prithvianilk/pomo/internal/pomo"
 )
 
 func usage() {
@@ -16,20 +18,25 @@ COMMANDS
   pomo record <name> <duration (M)>                               Record a pomo session.`)
 }
 
+// TODO: add this-week, this-month, this-year features for start date.
+// TODO: add delete functionality
+
 func main() {
-	app := App{baseURL: os.Getenv("BASE_URL"), Flags: Flags{}}
+	app := app.New(os.Getenv("BASE_URL"))
+	app.ParseFlags()
+
 	flag.Usage = usage
-	app.parseFlags()
 	if len(flag.Args()) == 0 {
 		flag.Usage()
 		return
 	}
+
 	cmd := flag.Args()[0]
 	switch cmd {
 	case "list":
-		app.listSessions()
+		app.ListSessions()
 	case "record":
-		app.recordSession()
+		app.RecordSession()
 	default:
 		fmt.Printf("No command: %v\n", cmd)
 		flag.Usage()

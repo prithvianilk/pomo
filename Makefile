@@ -1,7 +1,7 @@
-all: server pomo
+all: pomo-server pomo
 
-server: cmd/server/*.go
-	go build -o bin/server ./cmd/server
+pomo-server: cmd/pomo-server/*.go
+	go build -o bin/pomo-server ./cmd/pomo-server
 
 pomo: cmd/pomo/*.go
 	go build -o bin/pomo ./cmd/pomo

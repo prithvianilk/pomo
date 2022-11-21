@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"database/sql"
@@ -8,21 +8,52 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	constants "github.com/prithvianilk/pomo/internal/constants"
 	models "github.com/prithvianilk/pomo/internal/models"
 )
 
 const defaultStartDate = "2022-Sep-19"
 
-type App struct {
-	db *sqlx.DB
+func getDB(dbURL string) *sqlx.DB {
+	db, err := sqlx.Open("postgres", dbURL)
+	if err != nil {
+		panic(err)
+	}
+	return db
 }
 
-func (app *App) GetHandler(c *gin.Context) {
+type Server struct {
+	db   *sqlx.DB
+	port string
+}
+
+func New(dbURL, port string) *Server {
+	server := Server{db: getDB(dbURL), port: port}
+	return &server
+}
+
+func (server *Server) Run() {
+	router := gin.Default()
+
+	router.GET("/session", server.getHandler)
+	router.GET("/session/:name", server.getSingleSessionHandler)
+	router.POST("/session", server.postHandler)
+	router.GET("/name", server.getSessionNamesHandler)
+	router.GET("/maintainance/session", server.dropAndCreateNew)
+
+	address := ":" + server.port
+	err := router.Run(address)
+	if err != nil {
+		log.Fatalf("error while running server: %v", err)
+	}
+}
+
+func (server *Server) getHandler(c *gin.Context) {
 	startDate, endDate := getDateRanges(c)
 
 	query := `SELECT * FROM session WHERE date BETWEEN $1 AND $2;`
-	rows, err := app.db.Query(query, startDate, endDate)
+	rows, err := server.db.Query(query, startDate, endDate)
 	if err != nil {
 		log.Printf("error during sql query: %v", err)
 		c.JSON(http.StatusInternalServerError, nil)
@@ -43,14 +74,14 @@ func (app *App) GetHandler(c *gin.Context) {
 	})
 }
 
-func (app *App) GetSingleSessionHandler(c *gin.Context) {
+func (server *Server) getSingleSessionHandler(c *gin.Context) {
 	name := c.Param("name")
 	startDate, endDate := getDateRanges(c)
 
 	query := `SELECT * FROM session 
 	WHERE name = $1 AND 
 	date BETWEEN $2 AND $3;`
-	rows, err := app.db.Query(query, name, startDate, endDate)
+	rows, err := server.db.Query(query, name, startDate, endDate)
 	if err != nil {
 		log.Printf("error during sql query: %v", err)
 		c.JSON(http.StatusInternalServerError, nil)
@@ -76,7 +107,7 @@ func (app *App) GetSingleSessionHandler(c *gin.Context) {
 	})
 }
 
-func (app *App) PostHandler(c *gin.Context) {
+func (server *Server) postHandler(c *gin.Context) {
 	var session models.Session
 	err := c.BindJSON(&session)
 	if err != nil {
@@ -85,7 +116,7 @@ func (app *App) PostHandler(c *gin.Context) {
 		return
 	}
 	query := `INSERT INTO session (name, duration_in_minutes) VALUES ($1, $2);`
-	_, err = app.db.Exec(query, session.Name, session.DurationInMinutes)
+	_, err = server.db.Exec(query, session.Name, session.DurationInMinutes)
 	if err != nil {
 		log.Printf("error while inserting session: %v", err)
 		c.JSON(http.StatusInternalServerError, nil)
@@ -94,9 +125,9 @@ func (app *App) PostHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, nil)
 }
 
-func (app *App) GetSessionNamesHandler(c *gin.Context) {
+func (server *Server) getSessionNamesHandler(c *gin.Context) {
 	query := `SELECT DISTINCT name from session;`
-	rows, err := app.db.Query(query)
+	rows, err := server.db.Query(query)
 	if err != nil {
 		log.Printf("error while querying session names: %v", err)
 		c.JSON(http.StatusInternalServerError, nil)
@@ -111,9 +142,9 @@ func (app *App) GetSessionNamesHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, names)
 }
 
-func (app *App) DropAndCreateNew(c *gin.Context) {
+func (server *Server) dropAndCreateNew(c *gin.Context) {
 	query := `DROP TABLE session;`
-	_, err := app.db.Exec(query)
+	_, err := server.db.Exec(query)
 	if err != nil {
 		log.Printf("error while dropping table: %v", err)
 	}
@@ -124,7 +155,7 @@ func (app *App) DropAndCreateNew(c *gin.Context) {
 		date DATE NOT NULL DEFAULT CURRENT_DATE,
 		duration_in_minutes INT
 	);`
-	_, err = app.db.Exec(query)
+	_, err = server.db.Exec(query)
 	if err != nil {
 		log.Printf("error while creating table: %v", err)
 		c.JSON(http.StatusInternalServerError, nil)

@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"bytes"
@@ -25,22 +25,27 @@ const (
 
 var header = table.Row{"#", "Name", "Date", "Duration (M)"}
 
-type SessionData struct {
+type sessionData struct {
 	Sessions      []models.Session `json:"sessions"`
 	TotalDuration int              `json:"totalDuration"`
 }
 
-type Flags struct {
+type flags struct {
 	startDate, endDate string
 	isNameOnlyCommand  bool
 }
 
 type App struct {
 	baseURL string
-	Flags
+	flags
 }
 
-func (app *App) listSessions() {
+func New(baseURL string) *App {
+	app := App{baseURL: baseURL, flags: flags{}}
+	return &app
+}
+
+func (app *App) ListSessions() {
 	if app.isNameOnlyCommand {
 		app.listSessionNames()
 		return
@@ -56,7 +61,7 @@ func (app *App) listSessions() {
 		return
 	}
 
-	var sessionData SessionData
+	var sessionData sessionData
 	err = json.NewDecoder(resp.Body).Decode(&sessionData)
 	if err != nil {
 		fmt.Printf("Error: Failed to decoding session data: %v", err)
@@ -66,7 +71,7 @@ func (app *App) listSessions() {
 	printTable(sessionData)
 }
 
-func (app *App) recordSession() {
+func (app *App) RecordSession() {
 	name, duration := flag.Args()[1], flag.Args()[2]
 	durationInMinutes, err := strconv.Atoi(duration)
 	if err != nil {
@@ -106,7 +111,7 @@ func (app *App) listSessionNames() {
 	}
 }
 
-func (a *App) parseFlags() {
+func (a *App) ParseFlags() {
 	isNameOnlyCommand := flag.Bool("nameonly", false, "")
 	startDate, endDate := flag.String("start-date", "", ""), flag.String("end-date", "", "")
 	flag.Parse()
@@ -142,7 +147,7 @@ func getRecordSessionURL(baseURL, startDate, endDate string) string {
 	return url + "?end-date=" + endDate
 }
 
-func printTable(sessionData SessionData) {
+func printTable(sessionData sessionData) {
 	writer := table.NewWriter()
 	writer.SetOutputMirror(os.Stdout)
 	writer.AppendHeader(header)

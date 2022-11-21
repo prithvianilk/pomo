@@ -1,5 +1,4 @@
 .env
 
 # executables
-bin/pomo
-bin/server
+bin/*
