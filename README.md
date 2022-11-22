@@ -9,4 +9,5 @@ pomo [--start-date=<value>] [--end-date=<value>] list           List all pomo se
 pomo [--start-date=<value>] [--end-date=<value>] list <name>    List all pomo sessions based on name.
 pomo --nameonly list                                            List all pomo session names.
 pomo record <name> <duration (M)>                               Record a pomo session.
+pomo delete <id>                                                Delete a pomo session by id.
 ```

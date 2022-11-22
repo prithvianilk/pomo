@@ -14,7 +14,7 @@ import (
 	"github.com/gen2brain/beeep"
 	"github.com/jedib0t/go-pretty/table"
 	"github.com/prithvianilk/pomo/internal/constants"
-	"github.com/prithvianilk/pomo/internal/models"
+	"github.com/prithvianilk/pomo/internal/types"
 )
 
 const (
@@ -24,11 +24,6 @@ const (
 )
 
 var header = table.Row{"#", "Name", "Date", "Duration (M)"}
-
-type sessionData struct {
-	Sessions      []models.Session `json:"sessions"`
-	TotalDuration int              `json:"totalDuration"`
-}
 
 type flags struct {
 	startDate, endDate string
@@ -40,9 +35,9 @@ type App struct {
 	flags
 }
 
-func New(baseURL string) *App {
+func New(baseURL string) App {
 	app := App{baseURL: baseURL, flags: flags{}}
-	return &app
+	return app
 }
 
 func (app *App) ListSessions() {
@@ -61,7 +56,7 @@ func (app *App) ListSessions() {
 		return
 	}
 
-	var sessionData sessionData
+	var sessionData types.SessionData
 	err = json.NewDecoder(resp.Body).Decode(&sessionData)
 	if err != nil {
 		fmt.Printf("Error: Failed to decoding session data: %v", err)
@@ -79,7 +74,7 @@ func (app *App) RecordSession() {
 		return
 	}
 	writePomoTickToStdout(durationInMinutes)
-	session := models.Session{Name: name, DurationInMinutes: durationInMinutes}
+	session := types.Session{Name: name, DurationInMinutes: durationInMinutes}
 	buff, _ := json.Marshal(session)
 	body := bytes.NewBuffer(buff)
 	url := app.baseURL + "/session"
@@ -127,12 +122,12 @@ func (app *App) listSessionNames() {
 	}
 }
 
-func (a *App) ParseFlags() {
+func (app *App) ParseFlags() {
 	isNameOnlyCommand := flag.Bool("nameonly", false, "")
 	startDate, endDate := flag.String("start-date", "", ""), flag.String("end-date", "", "")
 	flag.Parse()
-	a.isNameOnlyCommand = *isNameOnlyCommand
-	a.startDate, a.endDate = *startDate, *endDate
+	app.isNameOnlyCommand = *isNameOnlyCommand
+	app.startDate, app.endDate = *startDate, *endDate
 }
 
 func checkAndHandleConnFailOrInternalServerError(err error, resp *http.Response) bool {
@@ -163,7 +158,7 @@ func getRecordSessionURL(baseURL, startDate, endDate string) string {
 	return url + "?end-date=" + endDate
 }
 
-func printTable(sessionData sessionData) {
+func printTable(sessionData types.SessionData) {
 	writer := table.NewWriter()
 	writer.SetOutputMirror(os.Stdout)
 	writer.AppendHeader(header)
