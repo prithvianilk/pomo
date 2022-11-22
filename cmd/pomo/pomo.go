@@ -15,11 +15,9 @@ COMMANDS
   pomo [--start-date=<value>] [--end-date=<value>] list           List all pomo sessions.
   pomo [--start-date=<value>] [--end-date=<value>] list <name>    List all pomo sessions based on name.
   pomo --nameonly list                                            List all pomo session names.
-  pomo record <name> <duration (M)>                               Record a pomo session.`)
+  pomo record <name> <duration (M)>                               Record a pomo session.
+  pomo delete <id>                                                Delete a pomo session by id.`)
 }
-
-// TODO: add this-week, this-month, this-year features for start date.
-// TODO: add delete functionality
 
 func main() {
 	app := app.New(os.Getenv("BASE_URL"))
@@ -37,6 +35,8 @@ func main() {
 		app.ListSessions()
 	case "record":
 		app.RecordSession()
+	case "delete":
+		app.DeleteSession()
 	default:
 		fmt.Printf("No command: %v\n", cmd)
 		flag.Usage()

@@ -94,6 +94,22 @@ func (app *App) RecordSession() {
 	notifyOnDesktop(name)
 }
 
+func (app *App) DeleteSession() {
+	id := flag.Args()[1]
+	url := app.baseURL + "/session/" + id
+	req, _ := http.NewRequest(http.MethodDelete, url, nil)
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println(serverConnFailMessage)
+		return
+	} else if resp.StatusCode == http.StatusInternalServerError {
+		fmt.Println(serverGenericErrMessage)
+		return
+	}
+	fmt.Printf("Successfully deleted session with id %v\n", id)
+}
+
 func (app *App) listSessionNames() {
 	url := app.baseURL + "/name"
 	resp, err := http.Get(url)

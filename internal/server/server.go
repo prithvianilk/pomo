@@ -40,6 +40,7 @@ func (server *Server) Run() {
 	router.GET("/session/:name", server.getSingleSessionHandler)
 	router.POST("/session", server.postHandler)
 	router.GET("/name", server.getSessionNamesHandler)
+	router.DELETE("/session/:id", server.deleteSessionHandler)
 	router.GET("/maintainance/session", server.dropAndCreateNew)
 
 	address := ":" + server.port
@@ -140,6 +141,18 @@ func (server *Server) getSessionNamesHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, names)
+}
+
+func (server *Server) deleteSessionHandler(c *gin.Context) {
+	id := c.Param("id")
+	query := `DELETE FROM session where id = $1;`
+	_, err := server.db.Exec(query, id)
+	if err != nil {
+		log.Printf("error while deleting session with id %v: %v", id, err)
+		c.JSON(http.StatusInternalServerError, nil)
+		return
+	}
+	c.JSON(http.StatusOK, nil)
 }
 
 func (server *Server) dropAndCreateNew(c *gin.Context) {
